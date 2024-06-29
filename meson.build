@@ -423,6 +423,23 @@ if librsvg_found
     cfg_var.set('HAVE_RSVG', '1')
 endif
 
+# only if librsvg not found
+resvg_dep = disabler()
+resvg_module = false
+if not librsvg_found
+    # resvg doesn't ship pkg-config files, so we can't use dependency()
+    resvg_dep = cc.find_library('resvg', has_headers: ['resvg.h'], required: get_option('resvg'))
+    if resvg_dep.found()
+        resvg_module = modules_enabled and not get_option('resvg-module').disabled()
+        if resvg_module
+            cfg_var.set('RESVG_MODULE', '1')
+        else
+            libvips_deps += resvg_dep
+        endif
+        cfg_var.set('HAVE_RESVG', '1')
+    endif
+endif
+
 openslide_dep = dependency('openslide', version: '>=3.3.0', required: get_option('openslide'))
 openslide_module = false
 if openslide_dep.found()
@@ -768,6 +785,7 @@ build_features = {
      'WebP load/save': ['libwebp', libwebp_dep],
      'PDF load': ['PDFium or Poppler', pdf_loader, libpoppler_module],
      'SVG load': ['librsvg', librsvg_found ? librsvg_dep : disabler()],
+     'SVG load with resvg': [resvg_dep.found(), ' (dynamic module: ', resvg_module, ')'],
      'EXR load': ['OpenEXR', openexr_dep],
      'WSI load': ['OpenSlide', openslide_dep, openslide_module],
      'Matlab load': ['Matio', matio_dep],
