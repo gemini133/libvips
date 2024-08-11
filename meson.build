@@ -122,10 +122,10 @@ endif
 # Detect and set symbol visibility
 if get_option('default_library') == 'shared' and host_os in ['windows', 'cygwin']
     cfg_var.set('DLL_EXPORT', true)
-    if cc.has_function_attribute('visibility:hidden')
-        cfg_var.set('_VIPS_PUBLIC', '__attribute__((visibility("default"))) __declspec(dllexport)')
-    else
+    if cc.get_id() == 'msvc' or cc.get_id() == 'clang-cl'
         cfg_var.set('_VIPS_PUBLIC', '__declspec(dllexport)')
+    elif cc.has_function_attribute('visibility:hidden')
+        cfg_var.set('_VIPS_PUBLIC', '__attribute__((visibility("default"))) __declspec(dllexport)')
     endif
 elif cc.has_function_attribute('visibility:hidden')
     cfg_var.set('_VIPS_PUBLIC', '__attribute__((visibility("default")))')
@@ -548,12 +548,8 @@ if libheif_dep.found()
     if libheif_dep.version().version_compare('>=1.7.0')
         cfg_var.set('HAVE_HEIF_AVIF', '1')
     endif
-    # added in 1.11.0
-    if cpp.has_member('struct heif_encoding_options', 'output_nclx_profile', prefix: '#include <libheif/heif.h>', dependencies: libheif_dep)
-        cfg_var.set('HAVE_HEIF_ENCODING_OPTIONS_OUTPUT_NCLX_PROFILE', '1')
-    endif
 
-    # heif_init added in 1.13.0
+    # heif_init in 1.13
     if libheif_dep.version().version_compare('>=1.13.0')
         cfg_var.set('HAVE_HEIF_INIT', '1')
     endif

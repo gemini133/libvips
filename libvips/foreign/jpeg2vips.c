@@ -184,6 +184,10 @@ typedef struct _ReadJpeg {
 	ErrorManager eman;
 	gboolean invert_pels;
 
+	/* Track the y pos during a read with this.
+	 */
+	int y_pos;
+
 	/* Use orientation tag to automatically rotate and flip image
 	 * during load.
 	 */
@@ -467,6 +471,7 @@ readjpeg_new(VipsSource *source, VipsImage *out,
 	jpeg->eman.pub.emit_message = readjpeg_emit_message;
 	jpeg->eman.pub.output_message = vips__new_output_message;
 	jpeg->eman.fp = NULL;
+	jpeg->y_pos = 0;
 	jpeg->autorotate = autorotate;
 	jpeg->unlimited = unlimited;
 	jpeg->cinfo.client_data = jpeg;
@@ -875,13 +880,13 @@ read_jpeg_generate(VipsRegion *out_region,
 	 */
 	g_assert(r->height == VIPS_MIN(8, out_region->im->Ysize - r->top));
 
-	/* And check that the y position is correct. It should be, since we are
-	 * inside a vips_sequential().
+	/* And check that y_pos is correct. It should be, since we are inside
+	 * a vips_sequential().
 	 */
-	if (r->top != cinfo->output_scanline) {
+	if (r->top != jpeg->y_pos) {
 		VIPS_GATE_STOP("read_jpeg_generate: work");
-		vips_error("VipsJpeg", _("out of order read at line %d"),
-			cinfo->output_scanline);
+		vips_error("VipsJpeg",
+			_("out of order read at line %d"), jpeg->y_pos);
 
 		return -1;
 	}
@@ -924,6 +929,8 @@ read_jpeg_generate(VipsRegion *out_region,
 			for (x = 0; x < sz; x++)
 				row_pointer[0][x] = 255 - row_pointer[0][x];
 		}
+
+		jpeg->y_pos += 1;
 	}
 
 	VIPS_GATE_STOP("read_jpeg_generate: work");

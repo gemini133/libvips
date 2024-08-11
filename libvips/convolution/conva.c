@@ -177,7 +177,7 @@ typedef struct {
 
 	/* The horizontal lines we gather. hline[3] writes to band 3 in the
 	 * intermediate image. max_line is the length of the longest hline:
-	 * over 256 and we need to use an int intermediate for integer images.
+	 * over 256 and we need to use an int intermediate for 8-bit images.
 	 */
 	int n_hline;
 	HLine hline[MAX_LINES];
@@ -933,39 +933,33 @@ vips_conva_hgenerate(VipsRegion *out_region,
 			break;
 
 		case VIPS_FORMAT_USHORT:
-			if (conva->max_line < 256)
-				HCONV(unsigned short, unsigned short);
-			else
-				HCONV(unsigned short, unsigned int);
+			HCONV(unsigned short, unsigned int);
 			break;
 
 		case VIPS_FORMAT_SHORT:
-			if (conva->max_line < 256)
-				HCONV(signed short, signed short);
-			else
-				HCONV(signed short, signed int);
+			HCONV(signed short, signed int);
 			break;
 
 		case VIPS_FORMAT_UINT:
-			if (conva->max_line < 256)
-				HCONV(unsigned int, unsigned short);
-			else
-				HCONV(unsigned int, unsigned int);
+			HCONV(unsigned int, unsigned int);
 			break;
 
 		case VIPS_FORMAT_INT:
-			if (conva->max_line < 256)
-				HCONV(signed int, signed short);
-			else
-				HCONV(signed int, signed int);
+			HCONV(signed int, signed int);
 			break;
 
 		case VIPS_FORMAT_FLOAT:
-		case VIPS_FORMAT_COMPLEX:
 			HCONV(float, float);
 			break;
 
 		case VIPS_FORMAT_DOUBLE:
+			HCONV(double, double);
+			break;
+
+		case VIPS_FORMAT_COMPLEX:
+			HCONV(float, float);
+			break;
+
 		case VIPS_FORMAT_DPCOMPLEX:
 			HCONV(double, double);
 			break;
@@ -999,7 +993,7 @@ vips_conva_horizontal(VipsConva *conva, VipsImage *in, VipsImage **out)
 	}
 	(*out)->Bands *= conva->n_hline;
 
-	/* Short {u,}{char,short,int} lines can use {u,}short as intermediate.
+	/* Short u?char lines can use u?short intermediate.
 	 */
 	if (vips_band_format_isuint(in->BandFmt))
 		(*out)->BandFmt = conva->max_line < 256
@@ -1181,41 +1175,34 @@ vips_conva_vgenerate(VipsRegion *out_region,
 		break;
 
 	case VIPS_FORMAT_USHORT:
-		if (conva->max_line < 256)
-			VCONV(unsigned int,
-				unsigned short, unsigned short, CLIP_USHORT);
-		else
-			VCONV(unsigned int,
-				unsigned int, unsigned short, CLIP_USHORT);
+		VCONV(unsigned int,
+			unsigned int, unsigned short, CLIP_USHORT);
 		break;
 
 	case VIPS_FORMAT_SHORT:
-		if (conva->max_line < 256)
-			VCONV(signed int, signed short, signed short, CLIP_SHORT);
-		else
-			VCONV(signed int, signed int, signed short, CLIP_SHORT);
+		VCONV(signed int, signed int, signed short, CLIP_SHORT);
 		break;
 
 	case VIPS_FORMAT_UINT:
-		if (conva->max_line < 256)
-			VCONV(unsigned int, unsigned short, unsigned int, CLIP_SHORT);
-		else
-			VCONV(unsigned int, unsigned int, unsigned int, CLIP_NONE);
+		VCONV(unsigned int, unsigned int, unsigned int, CLIP_NONE);
 		break;
 
 	case VIPS_FORMAT_INT:
-		if (conva->max_line < 256)
-			VCONV(signed int, signed short, signed int, CLIP_NONE);
-		else
-			VCONV(signed int, signed int, signed int, CLIP_NONE);
+		VCONV(signed int, signed int, signed int, CLIP_NONE);
 		break;
 
 	case VIPS_FORMAT_FLOAT:
-	case VIPS_FORMAT_COMPLEX:
 		VCONV(float, float, float, CLIP_NONE);
 		break;
 
 	case VIPS_FORMAT_DOUBLE:
+		VCONV(double, double, double, CLIP_NONE);
+		break;
+
+	case VIPS_FORMAT_COMPLEX:
+		VCONV(float, float, float, CLIP_NONE);
+		break;
+
 	case VIPS_FORMAT_DPCOMPLEX:
 		VCONV(double, double, double, CLIP_NONE);
 		break;

@@ -156,6 +156,15 @@ class TestConversion:
         b = (self.mono < 2).ifthenelse(self.mono, 2)
         assert (a - b).abs().min() == 0
 
+    def test_cache(self):
+        def cache(x):
+            if isinstance(x, pyvips.Image):
+                return x.cache()
+            else:
+                return x
+
+        self.run_unary(self.all_images, cache)
+
     def test_copy(self):
         x = self.colour.copy(interpretation=pyvips.Interpretation.LAB)
         assert x.interpretation == pyvips.Interpretation.LAB
@@ -242,7 +251,8 @@ class TestConversion:
             pixel = [int(x) & 0xff for x in pixel]
             assert_almost_equal_objects(pixel, [255, 255, 255])
 
-    @skip_if_no("gravity")
+    @pytest.mark.skipif(pyvips.type_find("VipsOperation", "gravity") == 0,
+                        reason="no gravity in this vips, skipping test")
     def test_gravity(self):
         im = pyvips.Image.black(1, 1) + 255
 
@@ -317,13 +327,15 @@ class TestConversion:
             pixel = sub(5, 5)
             assert_almost_equal_objects(pixel, [2, 3, 4])
 
-    @skip_if_no("smartcrop")
+    @pytest.mark.skipif(pyvips.type_find("VipsOperation", "smartcrop") == 0,
+                        reason="no smartcrop, skipping test")
     def test_smartcrop(self):
         test = self.image.smartcrop(100, 100)
         assert test.width == 100
         assert test.height == 100
 
-    @skip_if_no("smartcrop")
+    @pytest.mark.skipif(pyvips.type_find("VipsOperation", "smartcrop") == 0,
+                        reason="no smartcrop, skipping test")
     def test_smartcrop_attention(self):
         test, opts = self.image.smartcrop(
             100, 100,
@@ -434,7 +446,8 @@ class TestConversion:
                 # differs ... don't require huge accuracy
                 assert abs(x - y) < 2
 
-    @skip_if_no("composite")
+    @pytest.mark.skipif(pyvips.type_find("VipsConversion", "composite") == 0,
+                        reason="no composite support, skipping test")
     def test_composite(self):
         # 50% transparent image
         overlay = self.colour.bandjoin(128)
