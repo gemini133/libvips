@@ -21,6 +21,8 @@ master 8.16
   desired target_size [john-parton]
 - revise sRGB -> B_W coefficients [daniellovera]
 - add vips_sdf(), vips_clamp(), vips_maxpair(), vips_minpair()
+- more const for the C++ API [Julianiolo]
+- deprecate "cache" (use tilecache instead)
 
 8.15.3
 
@@ -31,6 +33,9 @@ master 8.16
 - fix pipe read limit
 - fix a rare crash on Windows in highly threaded applications [Julianiolo]
 - vipssave: fix infinite loop on Windows with large images [pdbourke]
+- conva: fix a crash with {u,}{short,int} images [erdmann]
+- fix vips_image_get_string
+- heifsave: fix lossless mode [kleisauke]
 
 12/3/24 8.15.2
 
