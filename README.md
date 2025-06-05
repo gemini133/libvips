@@ -1,3 +1,5 @@
+cherry-pick resvg commits from https://github.com/kleisauke/libvips/commits/wasm-vips-8.17/
+
 # libvips: an image processing library
 
 [![CI](https://github.com/libvips/libvips/workflows/CI/badge.svg)](https://github.com/libvips/libvips/actions)
