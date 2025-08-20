@@ -357,19 +357,19 @@ static GQuark vips__foreign_load_operation = 0;
  *
  * Some hints about the image loader.
  *
- * [flags@Vips.ForeignFlags.PARTIAL] means that the image can be read directly from the
- * file without needing to be unpacked to a temporary image first.
+ * [flags@Vips.ForeignFlags.PARTIAL] means that the image can be read directly
+ * from the file without needing to be unpacked to a temporary image first.
  *
- * [flags@Vips.ForeignFlags.SEQUENTIAL] means that the loader supports lazy reading, but
- * only top-to-bottom (sequential) access. Formats like PNG can read sets of
- * scanlines, for example, but only in order.
+ * [flags@Vips.ForeignFlags.SEQUENTIAL] means that the loader supports lazy
+ * reading, but only top-to-bottom (sequential) access. Formats like PNG can
+ * read sets of scanlines, for example, but only in order.
  *
  * If neither PARTIAL or SEQUENTIAL is set, the loader only supports whole
  * image read. Setting both PARTIAL and SEQUENTIAL is an error.
  *
- * [flags@Vips.ForeignFlags.BIGENDIAN] means that image pixels are most-significant byte
- * first. Depending on the native byte order of the host machine, you may
- * need to swap bytes. See [method@Image.copy].
+ * [flags@Vips.ForeignFlags.BIGENDIAN] means that image pixels are
+ * most-significant byte first. Depending on the native byte order of the
+ * host machine, you may need to swap bytes. See [method@Image.copy].
  */
 
 G_DEFINE_ABSTRACT_TYPE(VipsForeign, vips_foreign, VIPS_TYPE_OPERATION);
@@ -1643,7 +1643,17 @@ vips__foreign_convert_saveable(VipsImage *in, VipsImage **ready,
 	/* Convert to the format the saver likes.
 	 */
 	if (in->Coding == VIPS_CODING_NONE) {
-		if (vips_cast(in, &out, format[in->BandFmt], NULL)) {
+		/* If the saver does not support 16-bit output, automatically
+		 * shift it down. This is the behaviour we want for saving an
+		 * RGB16 image as JPEG, for example.
+		 */
+		gboolean needs_shift =
+			!vips_band_format_is8bit(in->BandFmt) &&
+			vips_band_format_is8bit(format[in->BandFmt]);
+
+		if (vips_cast(in, &out, format[in->BandFmt],
+			"shift", needs_shift,
+			NULL)) {
 			g_object_unref(in);
 			return -1;
 		}
@@ -2711,6 +2721,9 @@ vips_jxlsave_target(VipsImage *in, VipsTarget *target, ...)
  *
  * Use @password to supply a decryption password.
  *
+ * When using pdfium, the region of a page to render can be selected with
+ * @page_box, defaulting to the crop box.
+ *
  * The operation fills a number of header fields with metadata, for example
  * "pdf-author". They may be useful.
  *
@@ -2723,6 +2736,7 @@ vips_jxlsave_target(VipsImage *in, VipsTarget *target, ...)
  *     * @dpi: `gdouble`, render at this DPI
  *     * @scale: `gdouble`, scale render by this factor
  *     * @background: [struct@ArrayDouble], background colour
+ *     * @page_box: [enum@ForeignPdfPageBox], use this page box (pdfium only)
  *
  * ::: seealso
  *     [ctor@Image.new_from_file], [ctor@Image.magickload].
@@ -2761,6 +2775,7 @@ vips_pdfload(const char *filename, VipsImage **out, ...)
  *     * @dpi: `gdouble`, render at this DPI
  *     * @scale: `gdouble`, scale render by this factor
  *     * @background: [struct@ArrayDouble], background colour
+ *     * @page_box: [enum@ForeignPdfPageBox], use this page box (pdfium only)
  *
  * ::: seealso
  *     [ctor@Image.pdfload].
@@ -2801,6 +2816,7 @@ vips_pdfload_buffer(void *buf, size_t len, VipsImage **out, ...)
  *     * @dpi: `gdouble`, render at this DPI
  *     * @scale: `gdouble`, scale render by this factor
  *     * @background: [struct@ArrayDouble], background colour
+ *     * @page_box: [enum@ForeignPdfPageBox], use this page box (pdfium only)
  *
  * ::: seealso
  *     [ctor@Image.pdfload]
@@ -2990,8 +3006,10 @@ vips_foreign_operation_init(void)
 
 	extern GType vips_foreign_load_magick_file_get_type(void);
 	extern GType vips_foreign_load_magick_buffer_get_type(void);
+	extern GType vips_foreign_load_magick_source_get_type(void);
 	extern GType vips_foreign_load_magick7_file_get_type(void);
 	extern GType vips_foreign_load_magick7_buffer_get_type(void);
+	extern GType vips_foreign_load_magick7_source_get_type(void);
 
 	extern GType vips_foreign_save_magick_file_get_type(void);
 	extern GType vips_foreign_save_magick_buffer_get_type(void);
@@ -3053,6 +3071,10 @@ vips_foreign_operation_init(void)
 	extern GType vips_foreign_save_cgif_file_get_type(void);
 	extern GType vips_foreign_save_cgif_buffer_get_type(void);
 	extern GType vips_foreign_save_cgif_target_get_type(void);
+
+	extern GType vips_foreign_load_dcraw_file_get_type(void);
+	extern GType vips_foreign_load_dcraw_buffer_get_type(void);
+	extern GType vips_foreign_load_dcraw_source_get_type(void);
 
 	vips_foreign_load_csv_file_get_type();
 	vips_foreign_load_csv_source_get_type();
@@ -3144,6 +3166,12 @@ vips_foreign_operation_init(void)
 	vips_foreign_load_nsgif_source_get_type();
 #endif /*HAVE_NSGIF*/
 
+#ifdef HAVE_LIBRAW
+	vips_foreign_load_dcraw_file_get_type();
+	vips_foreign_load_dcraw_buffer_get_type();
+	vips_foreign_load_dcraw_source_get_type();
+#endif /*HAVE_LIBRAW*/
+
 #ifdef HAVE_CGIF
 	vips_foreign_save_cgif_file_get_type();
 	vips_foreign_save_cgif_buffer_get_type();
@@ -3216,11 +3244,13 @@ vips_foreign_operation_init(void)
 #ifdef HAVE_MAGICK6
 	vips_foreign_load_magick_file_get_type();
 	vips_foreign_load_magick_buffer_get_type();
+	vips_foreign_load_magick_source_get_type();
 #endif /*HAVE_MAGICK6*/
 
 #ifdef HAVE_MAGICK7
 	vips_foreign_load_magick7_file_get_type();
 	vips_foreign_load_magick7_buffer_get_type();
+	vips_foreign_load_magick7_source_get_type();
 #endif /*HAVE_MAGICK7*/
 #endif /*defined(ENABLE_MAGICKLOAD) && !defined(MAGICK_MODULE)*/
 

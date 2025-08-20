@@ -1,8 +1,29 @@
 master
 
-8.17.1
+- add dcrawload, dcrawload_source, dcrawload_buffer: load raw camera files
+  using libraw [lxsameer]
+- add magickload_source: load from a source with imagemagick
+- add vips__worker_exit(): enables fast threadpool shutdown
+- larger mmap windows on 64-bit machines improve random access mode for many
+  file formats
+- pdfload: control region to be rendered via `page_box` [lovell]
+
+8.17.2
+
+- rank: fix an off-by-one error [larsmaxfield]
+- pdfiumload: allow both dpi and scale to be set [kleisauke]
+
+7/7/25 8.17.1
 
 - fix API docs build with meson < 0.60 [lovell]
+- improve function checks in meson [kleisauke]
+- tiff: use correct log domain in threadsafe warning handlers [kleisauke]
+- shift 16-bit output down to 8-bit when unsupported by saver [kleisauke]
+- text: prevent use of rgba subpixel anti-aliasing [lovell]
+- tiffsave: always apply resolution unit conversion [kleisauke]
+- cache: suppress invalidation errors in release builds [kleisauke]
+- dzsave: IIIF: use named region of 'full' when no crop takes place [lovell]
+- pdfload: fix potential crash with pdfium < 6633 [zhifengzhuang]
 
 5/6/25 8.17.0
 

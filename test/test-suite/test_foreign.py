@@ -509,15 +509,23 @@ class TestForeign:
         assert (self.rgba - after).abs().max() == 0
 
         # we should be able to save an 8-bit image as a 16-bit PNG
-        rgb = pyvips.Image.new_from_file(JPEG_FILE)
-        data = rgb.pngsave_buffer(bitdepth=16)
+        data = self.colour.pngsave_buffer(bitdepth=16)
         rgb16 = pyvips.Image.pngload_buffer(data)
         assert rgb16.format == "ushort"
 
-        # we should be able to save a 16-bit image as a 8-bit PNG
+        # we should be able to save a 16-bit image as an 8-bit PNG
         data = rgb16.pngsave_buffer(bitdepth=8)
         rgb = pyvips.Image.pngload_buffer(data)
         assert rgb.format == "uchar"
+
+        # we should be able to save a 16-bit image as an 8-bit WebP
+        if have("webpsave"):
+            data = rgb16.webpsave_buffer(lossless=True)
+            rgb = pyvips.Image.webpload_buffer(data)
+            assert rgb.format == "uchar"
+            # ... and check if it was correctly shifted down
+            # https://github.com/libvips/libvips/issues/4568
+            assert (self.colour - rgb).abs().max() == 0
 
     @skip_if_no("tiffload")
     def test_tiff(self):
@@ -798,6 +806,9 @@ class TestForeign:
 
         self.file_loader("magickload", BMP_FILE, bmp_valid)
         self.buffer_loader("magickload_buffer", BMP_FILE, bmp_valid)
+        source = pyvips.Source.new_from_file(BMP_FILE)
+        x = pyvips.Image.new_from_source(source, "")
+        bmp_valid(x)
 
         # we should have rgb or rgba for svg files ... different versions of
         # IM handle this differently. GM even gives 1 band.
@@ -869,10 +880,11 @@ class TestForeign:
         assert im.width == 433
         assert im.height == 433
 
-
         # load should see metadata like eg. icc profiles
         im = pyvips.Image.magickload(JPEG_FILE)
         assert len(im.get("icc-profile-data")) == 564
+
+        im = pyvips.Image.magickload(JPEG_FILE)
 
     # added in 8.7
     @skip_if_no("magicksave")
@@ -1087,6 +1099,46 @@ class TestForeign:
         x = pyvips.Image.new_from_file(PDF_FILE, dpi=144)
         assert abs(im.width * 2 - x.width) < 2
         assert abs(im.height * 2 - x.height) < 2
+
+        im = pyvips.Image.new_from_file(PDF_PAGE_BOX_FILE)
+        assert im.width == 709
+        assert im.height == 955
+        assert im.get("pdf-creator") == "Adobe InDesign 20.4 (Windows)"
+        assert im.get("pdf-producer") == "Adobe PDF Library 17.0"
+
+        pdfloadOp = pyvips.Operation.new_from_name("pdfload").get_description()
+
+        if "poppler" in pdfloadOp:
+            # only crop is implemented, ignore requested page box
+            im = pyvips.Image.new_from_file(PDF_FILE, page_box="art")
+            assert im.width == 1134
+            assert im.height == 680
+            im = pyvips.Image.new_from_file(PDF_PAGE_BOX_FILE, page_box="art")
+            assert im.width == 709
+            assert im.height == 955
+
+        if "pdfium" in pdfloadOp:
+            im = pyvips.Image.new_from_file(PDF_FILE, page_box="art")
+            assert im.width == 1121
+            assert im.height == 680
+            im = pyvips.Image.new_from_file(PDF_FILE, page_box="trim") # missing, will fallback to crop
+            assert im.width == 1134
+            assert im.height == 680
+            im = pyvips.Image.new_from_file(PDF_PAGE_BOX_FILE, page_box="media")
+            assert im.width == 822
+            assert im.height == 1069
+            im = pyvips.Image.new_from_file(PDF_PAGE_BOX_FILE, page_box="crop")
+            assert im.width == 709
+            assert im.height == 955
+            im = pyvips.Image.new_from_file(PDF_PAGE_BOX_FILE, page_box="bleed")
+            assert im.width == 652
+            assert im.height == 899
+            im = pyvips.Image.new_from_file(PDF_PAGE_BOX_FILE, page_box="trim")
+            assert im.width == 595
+            assert im.height == 842
+            im = pyvips.Image.new_from_file(PDF_PAGE_BOX_FILE, page_box="art")
+            assert im.width == 539
+            assert im.height == 785
 
     @skip_if_no("gifload")
     def test_gifload(self):
@@ -1398,6 +1450,27 @@ class TestForeign:
         x = pyvips.Image.new_from_file(filename + "/TileGroup0/1-0-0.jpg")
         assert x.width == 256
         assert x.height == 256
+
+        # IIIF v2
+        im = pyvips.Image.black(3509, 2506, bands=3)
+        filename = temp_filename(self.tempdir, '')
+        im.dzsave(filename, layout="iiif")
+        assert os.path.exists(filename + "/info.json")
+        assert os.path.exists(filename + "/0,0,512,512/512,/0/default.jpg")
+        assert os.path.exists(filename + "/2560,2048,512,458/512,/0/default.jpg")
+        x = pyvips.Image.new_from_file(filename + "/full/439,/0/default.jpg")
+        assert x.width == 439
+        assert x.height == 314
+
+        # IIIF v3
+        filename = temp_filename(self.tempdir, '')
+        im.dzsave(filename, layout="iiif3")
+        assert os.path.exists(filename + "/info.json")
+        assert os.path.exists(filename + "/0,0,512,512/512,512/0/default.jpg")
+        assert os.path.exists(filename + "/2560,2048,512,458/512,458/0/default.jpg")
+        x = pyvips.Image.new_from_file(filename + "/full/439,314/0/default.jpg")
+        assert x.width == 439
+        assert x.height == 314
 
         # test zip output
         filename = temp_filename(self.tempdir, '.zip')

@@ -1,5 +1,5 @@
 project('vips', 'c', 'cpp',
-    version: '8.17.1',
+    version: '8.18.0',
     meson_version: '>=0.55',
     default_options: [
         # this is what glib uses (one of our required deps), so we use it too
@@ -23,9 +23,9 @@ version_patch = version_parts[2]
 # binary interface changed: increment current, reset revision to 0
 #   binary interface changes backwards compatible?: increment age
 #   binary interface changes not backwards compatible?: reset age to 0
-library_revision = 1
-library_current = 61
-library_age = 19
+library_revision = 0
+library_current = 62
+library_age = 20
 library_version = '@0@.@1@.@2@'.format(library_current - library_age, library_age, library_revision)
 darwin_versions = [library_current + 1, '@0@.@1@'.format(library_current + 1, library_revision)]
 
@@ -390,8 +390,6 @@ if librsvg_dep.found() and cairo_dep.found()
     external_deps += librsvg_dep
     external_deps += cairo_dep
     cfg_var.set('HAVE_RSVG', true)
-    # rsvg_handle_set_stylesheet added in librsvg 2.48.0
-    cfg_var.set('HAVE_RSVG_HANDLE_SET_STYLESHEET', cc.has_function('rsvg_handle_set_stylesheet', dependencies: librsvg_dep))
     # CAIRO_FORMAT_RGBA128F added in cairo 1.17.2
     cfg_var.set('HAVE_CAIRO_FORMAT_RGBA128F', cc.has_type('CAIRO_FORMAT_RGBA128F', dependencies: cairo_dep, prefix: '#include <cairo.h>'))
     svg_loader = librsvg_dep
@@ -427,8 +425,8 @@ if openslide_dep.found()
         external_deps += openslide_dep
     endif
     cfg_var.set('HAVE_OPENSLIDE', true)
-    cfg_var.set('HAVE_OPENSLIDE_ICC', cc.has_function('openslide_get_icc_profile_size', dependencies: openslide_dep))
-    cfg_var.set('HAVE_OPENSLIDE_CACHE_CREATE', cc.has_function('openslide_cache_create', dependencies: openslide_dep))
+    cfg_var.set('HAVE_OPENSLIDE_ICC', cc.has_function('openslide_get_icc_profile_size', prefix: '#include <openslide.h>', dependencies: openslide_dep))
+    cfg_var.set('HAVE_OPENSLIDE_CACHE_CREATE', cc.has_function('openslide_cache_create', prefix: '#include <openslide.h>', dependencies: openslide_dep))
 endif
 
 matio_dep = dependency('matio', required: get_option('matio'))
@@ -449,6 +447,12 @@ openexr_dep = dependency('OpenEXR', version: '>=1.2.2', required: get_option('op
 if openexr_dep.found()
     external_deps += openexr_dep
     cfg_var.set('HAVE_OPENEXR', true)
+endif
+
+libraw_dep = dependency('libraw_r', required: get_option('raw'))
+if libraw_dep.found()
+    external_deps += libraw_dep
+    cfg_var.set('HAVE_LIBRAW', true)
 endif
 
 # 2.4 is the first one to have working threading and tiling
@@ -718,6 +722,7 @@ build_features = {
      'NIfTI load/save': ['libnifti', libnifti_found ? libnifti_dep : disabler()],
      'FITS load/save': ['cfitsio', cfitsio_dep],
      'GIF save': ['cgif', cgif_dep],
+     'RAW load': ['libraw', libraw_dep],
      'Magick @0@'.format('/'.join(get_option('magick-features'))): [get_option('magick-package'), magick_found ? magick_dep : disabler(), magick_module],
     },
 }
